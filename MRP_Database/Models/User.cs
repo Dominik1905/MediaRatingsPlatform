@@ -6,4 +6,7 @@ public class User
     public string Username { get; set; } = string.Empty;
     public string PasswordHash { get; set; } = string.Empty;
     public string Token { get; set; } = string.Empty;
+
+    public List<Media> LikedMedia { get; set; } = new();
+    public List<Rating> LikedRatings { get; set; } = new();
 }

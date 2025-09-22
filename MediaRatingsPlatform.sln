@@ -2,7 +2,7 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MRP_Server", "MRP_Server\MRP_Server.csproj", "{CDDDB802-D789-4B07-A01A-094040539ACA}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MRP_DatabaseModels", "MRP_DatabaseModels\MRP_DatabaseModels.csproj", "{16E13D01-A004-43E7-8AB1-46906CB9BABB}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MRP_Database", "MRP_Database\MRP_Database.csproj", "{16E13D01-A004-43E7-8AB1-46906CB9BABB}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MRP_Client", "MRP_Client\MRP_Client.csproj", "{D873A0BC-B441-4C14-A55C-253D9734F98C}"
 EndProject

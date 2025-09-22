@@ -9,4 +9,6 @@ public class Rating
     public string Comment { get; set; } = string.Empty;
     public bool Confirmed { get; set; }
     public DateTime Timestamp { get; set; }
+
+    public List<User> LikedByUsers { get; set; } = new();
 }

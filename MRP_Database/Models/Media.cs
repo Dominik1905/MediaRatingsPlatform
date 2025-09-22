@@ -10,5 +10,9 @@ public class Media
     public int ReleaseYear { get; set; }
     public string Genre { get; set; } = string.Empty;
     public int AgeRestriction { get; set; }
+
     public int CreatedByUserId { get; set; }
+    
+    public List<Rating> Ratings { get; set; } = new();
+    public List<User> LikedByUsers { get; set; } = new();
 }

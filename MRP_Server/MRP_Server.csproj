@@ -9,7 +9,12 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\MRP_DatabaseModels\MRP_DatabaseModels.csproj" />
+      <ProjectReference Include="..\MRP_Database\MRP_Database.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="BCrypt" Version="1.0.0" />
+      <PackageReference Include="BCrypt.Net-Core" Version="1.6.0" />
     </ItemGroup>
 
 </Project>
