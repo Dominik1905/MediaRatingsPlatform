@@ -5,7 +5,7 @@ namespace MediaRatingsPlatform;
 public static class AuthService
 {
     private static readonly Dictionary<string, User> _tokens = new();
-    private static readonly List<User> _users = new(); // später aus PostgreSQL laden
+    private static readonly List<User> _users = new(); // aus db ziehen
 
     public static bool Register(User user)
     {
@@ -14,7 +14,7 @@ public static class AuthService
 
         user.Id = _users.Count + 1;
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(user.PasswordHash);
-        _users.Add(user);
+        _users.Add(user); //hier in db schreiben
         return true;
     }
 
