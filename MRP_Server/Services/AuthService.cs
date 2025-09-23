@@ -1,33 +1,44 @@
 ﻿using DatabaseObjects;
+using DatabaseObjects.Service;
 
 namespace MediaRatingsPlatform;
 
 public static class AuthService
 {
     private static readonly Dictionary<string, User> _tokens = new();
-    private static readonly List<User> _users = new(); // aus db ziehen
-
+    private static DatabaseService dbService = new DatabaseService();
+    private static bool UserExists(string username)
+    {
+        var user = dbService.GetUserByUsername(username);
+        if (user == null)
+            return false;
+        return true;
+    }
+    
     public static bool Register(User user)
     {
-        if (_users.Exists(u => u.Username == user.Username))
+        if (UserExists(user.Username))
             return false;
-
-        user.Id = _users.Count + 1;
+        
+           
+        
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(user.PasswordHash);
-        _users.Add(user); //hier in db schreiben
+        dbService.AddUser(user);
         return true;
     }
 
     public static User? Login(string username, string password)
     {
-        var user = _users.Find(u => u.Username == username);
-        if (user == null) return null;
-
+        if (!UserExists(username))
+            return null;
+        
+        var user = dbService.GetUserByUsername(username);
+        
         if (!BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
             return null;
 
         user.Token = $"{username}-mrpToken-{Guid.NewGuid()}";
-        _tokens[user.Token] = user;
+        dbService.UpdateUserToken(username, user.Token);
         return user;
     }
 

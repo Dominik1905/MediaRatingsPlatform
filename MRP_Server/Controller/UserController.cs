@@ -28,7 +28,7 @@ public static class UserController
                 return;
             }
 
-            var responseJson = JsonSerializer.Serialize(new { Token = user.Token });
+            var responseJson = JsonSerializer.Serialize(new { Token = user.Token , Password = user.PasswordHash});
             byte[] buffer = Encoding.UTF8.GetBytes(responseJson);
             context.Response.ContentType = "application/json";
             await context.Response.OutputStream.WriteAsync(buffer, 0, buffer.Length);
