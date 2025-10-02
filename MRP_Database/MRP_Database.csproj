@@ -9,6 +9,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <PackageReference Include="JWT" Version="11.0.0" />
       <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.0-preview1.25257.1" />
       <PackageReference Include="Npgsql" Version="9.0.3" />
       <PackageReference Include="System.Data.SqlClient" Version="4.9.0" />

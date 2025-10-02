@@ -1,34 +1,32 @@
-﻿
-
-using Microsoft.Data.SqlClient;
+﻿using Microsoft.Data.SqlClient;
 using Npgsql;
 
 namespace DatabaseObjects.Service;
 
 public class DatabaseService
 {
-    private readonly string connectionString = "host=localhost;Username=myuser;Password=mypassword;Database=mydb;Port=15432";
+    private readonly string connectionString =
+        "host=localhost;Username=myuser;Password=mypassword;Database=mydb;Port=15432";
 
     public DatabaseService()
     {
     }
-    
+
     public void AddUser(User user)
     {
         using var conn = new NpgsqlConnection(connectionString);
         conn.Open();
-        string sql = "INSERT INTO Users (Username, PasswordHash, Token) VALUES (@Username, @PasswordHash, @Token);";
+        string sql = "INSERT INTO Users (Username, PasswordHash) VALUES (@Username, @PasswordHash);";
         using var cmd = new NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@Username", user.Username);
         cmd.Parameters.AddWithValue("@PasswordHash", user.PasswordHash);
-        cmd.Parameters.AddWithValue("@Token", "dummy");
         cmd.ExecuteNonQuery();
     }
     public User? GetUserByUsername(string username)
     {
         using var conn = new NpgsqlConnection(connectionString);
         conn.Open();
-        string sql = "SELECT Id, Username, PasswordHash, Token FROM Users WHERE Username = @Username;";
+        string sql = "SELECT Id, Username, PasswordHash FROM Users WHERE Username = @Username;";
         using var cmd = new NpgsqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@Username", username);
 
@@ -40,9 +38,9 @@ public class DatabaseService
                 Id = reader.GetInt32(0),
                 Username = reader.GetString(1),
                 PasswordHash = reader.GetString(2),
-                Token = reader.GetString(3)
             };
         }
+
         return null; // Falls kein User gefunden wurde
     }
     public List<User> GetAllUsers()
@@ -63,26 +61,13 @@ public class DatabaseService
                 Id = reader.GetInt32(0),
                 Username = reader.GetString(1),
                 PasswordHash = reader.GetString(2),
-                Token = reader.GetString(3)
             };
 
             users.Add(user);
         }
+
         return users;
     }
-    public void UpdateUserToken(string username, string newToken)
-    {
-        using var conn = new NpgsqlConnection(connectionString);
-        conn.Open();
-
-        string sql = "UPDATE Users SET Token = @Token WHERE Username = @Username;";
-        using var cmd = new NpgsqlCommand(sql, conn);
-        cmd.Parameters.AddWithValue("@Token", newToken);
-        cmd.Parameters.AddWithValue("@Username", username);
-
-        cmd.ExecuteNonQuery();
-    }
-
     public void InsertMedia(Media media)
     {
         using var conn = new NpgsqlConnection(connectionString);
@@ -99,6 +84,115 @@ public class DatabaseService
         cmd.Parameters.AddWithValue("@CreatedByUserId", media.CreatedByUserId);
         cmd.ExecuteNonQuery();
     }
+    public List<Media> GetAllMedia()
+    {
+        var list = new List<Media>();
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+        string sql =
+            "SELECT Id, Title, Description, Type, ReleaseYear, Genre, AgeRestriction, CreatedByUserId FROM Media;";
+        using var cmd = new NpgsqlCommand(sql, conn);
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read())
+        {
+            list.Add(new Media
+            {
+                Id = reader.GetInt32(0),
+                Title = reader.GetString(1),
+                Description = reader.GetString(2),
+                Type = (MediaType)reader.GetInt32(3),
+                ReleaseYear = reader.GetInt32(4),
+                Genre = reader.GetString(5),
+                AgeRestriction = reader.GetInt32(6),
+                CreatedByUserId = reader.GetInt32(7)
+            });
+        }
+
+        return list;
+    }
+    public Media? GetMediaById(int id)
+    {
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+        string sql =
+            "SELECT Id, Title, Description, Type, ReleaseYear, Genre, AgeRestriction, CreatedByUserId FROM Media WHERE Id = @Id;";
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@Id", id);
+        using var reader = cmd.ExecuteReader();
+        if (reader.Read())
+        {
+            return new Media
+            {
+                Id = reader.GetInt32(0),
+                Title = reader.GetString(1),
+                Description = reader.GetString(2),
+                Type = (MediaType)reader.GetInt32(3),
+                ReleaseYear = reader.GetInt32(4),
+                Genre = reader.GetString(5),
+                AgeRestriction = reader.GetInt32(6),
+                CreatedByUserId = reader.GetInt32(7)
+            };
+        }
+
+        return null;
+    }
+    public List<Media> SearchMediaByTitle(string titlePart)
+    {
+        var list = new List<Media>();
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+        string sql = @"SELECT Id, Title, Description, Type, ReleaseYear, Genre, AgeRestriction, CreatedByUserId
+                   FROM Media WHERE Title ILIKE @Title;";
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@Title", NpgsqlTypes.NpgsqlDbType.Text, "%" + titlePart + "%");
+
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read())
+        {
+            list.Add(new Media
+            {
+                Id = reader.GetInt32(0),
+                Title = reader.GetString(1),
+                Description = reader.GetString(2),
+                Type = (MediaType)reader.GetInt32(3),
+                ReleaseYear = reader.GetInt32(4),
+                Genre = reader.GetString(5),
+                AgeRestriction = reader.GetInt32(6),
+                CreatedByUserId = reader.GetInt32(7)
+            });
+        }
+        return list;
+    }
+
+    public void UpdateMedia(Media media)
+    {
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+        string sql = @"UPDATE Media 
+                   SET Title=@Title, Description=@Description, Type=@Type, ReleaseYear=@ReleaseYear, Genre=@Genre, AgeRestriction=@AgeRestriction
+                   WHERE Id=@Id AND CreatedByUserId=@UserId;";
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@Title", media.Title);
+        cmd.Parameters.AddWithValue("@Description", media.Description);
+        cmd.Parameters.AddWithValue("@Type", (int)media.Type);
+        cmd.Parameters.AddWithValue("@ReleaseYear", media.ReleaseYear);
+        cmd.Parameters.AddWithValue("@Genre", media.Genre);
+        cmd.Parameters.AddWithValue("@AgeRestriction", media.AgeRestriction);
+        cmd.Parameters.AddWithValue("@Id", media.Id);
+        cmd.Parameters.AddWithValue("@UserId", media.CreatedByUserId);
+        cmd.ExecuteNonQuery();
+    }
+    public void DeleteMedia(int id, int userId)
+    {
+        using var conn = new NpgsqlConnection(connectionString);
+        conn.Open();
+        string sql = "DELETE FROM Media WHERE Id=@Id AND CreatedByUserId=@UserId;";
+        using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@Id", id);
+        cmd.Parameters.AddWithValue("@UserId", userId);
+        cmd.ExecuteNonQuery();
+    }
+
 
     // Rating einfügen
     public void InsertRating(Rating rating)

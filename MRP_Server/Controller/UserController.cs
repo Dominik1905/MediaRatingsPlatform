@@ -11,28 +11,41 @@ public static class UserController
     {
         if (method == "POST" && path.EndsWith("/login"))
         {
-            using var reader = new StreamReader(context.Request.InputStream);
-            var body = await reader.ReadToEndAsync();
-            var loginData = JsonSerializer.Deserialize<User>(body);
-
-            if (loginData == null)
+            try
             {
-                context.Response.StatusCode = 400;
-                return;
-            }
+                using var reader = new StreamReader(context.Request.InputStream);
+                var body = await reader.ReadToEndAsync();
+                var loginData = JsonSerializer.Deserialize<User>(body);
 
-            var user = AuthService.Login(loginData.Username, loginData.PasswordHash);
-            if (user == null)
+                if (loginData == null)
+                {
+                    context.Response.StatusCode = 400;
+                    context.Response.Close();
+                    return;
+                }
+
+                var jwt = AuthService.Login(loginData.Username, loginData.PasswordHash);
+                if (jwt == null)
+                {
+                    context.Response.StatusCode = 401;
+                    context.Response.Close();
+                    return;
+                }
+
+                var responseJson = JsonSerializer.Serialize(new { Token = jwt });
+                byte[] buffer = Encoding.UTF8.GetBytes(responseJson);
+
+                context.Response.ContentType = "application/json";
+                context.Response.ContentLength64 = buffer.Length; // <<< hier fix
+                await context.Response.OutputStream.WriteAsync(buffer, 0, buffer.Length);
+                context.Response.Close();
+            }
+            catch (Exception ex)
             {
-                context.Response.StatusCode = 401;
-                return;
+                Console.WriteLine("Login Fehler: " + ex);
+                context.Response.StatusCode = 500;
+                context.Response.Close();
             }
-
-            var responseJson = JsonSerializer.Serialize(new { Token = user.Token , Password = user.PasswordHash});
-            byte[] buffer = Encoding.UTF8.GetBytes(responseJson);
-            context.Response.ContentType = "application/json";
-            await context.Response.OutputStream.WriteAsync(buffer, 0, buffer.Length);
-            context.Response.Close();
         }
         else if (method == "POST" && path.EndsWith("/register"))
         {
@@ -47,7 +60,7 @@ public static class UserController
             }
 
             bool success = AuthService.Register(newUser);
-            context.Response.StatusCode = success ? 201 : 409; // 409 Conflict wenn Username schon existiert
+            context.Response.StatusCode = success ? 201 : 409; // 409 = Username schon existiert
             context.Response.Close();
         }
         else if (method == "GET" && path.Contains("/profile"))
@@ -61,18 +74,20 @@ public static class UserController
             }
 
             string token = authHeader.Substring("Bearer ".Length).Trim();
-            var user = AuthService.ValidateToken(token);
-            if (user == null)
+            var principal = AuthService.ValidateJwtToken(token);
+            if (principal == null)
             {
                 context.Response.StatusCode = 403;
                 context.Response.Close();
                 return;
             }
 
-            // Profil zurückgeben (erstmal Dummy-Daten)
+            // Claims auslesen
+            var username = principal.Identity?.Name ?? "unknown";
+
             var profile = new
             {
-                Username = user.Username,
+                Username = username,
                 TotalRatings = 0,
                 AvgScore = 0,
                 FavoriteGenre = "n/a"
