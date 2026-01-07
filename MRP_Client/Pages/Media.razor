@@ -1,0 +1,434 @@
+﻿@page "/media"
+@inject ApiClient Api
+@inject AuthState Auth
+
+<h1>Media</h1>
+
+@if (!Auth.IsLoggedIn)
+{
+  <div class="card"><b>Bitte zuerst einloggen.</b></div>
+}
+else
+{
+  <div class="grid2">
+    <div class="card">
+      <h3>Filter / Sort</h3>
+      <div class="grid3">
+        <div>
+          <label>Title contains</label>
+          <input class="input" @bind="fTitle" />
+        </div>
+        <div>
+          <label>Genre</label>
+          <input class="input" @bind="fGenre" />
+        </div>
+        <div>
+          <label>Type (0/1/2)</label>
+          <input class="input" @bind="fType" />
+        </div>
+        <div>
+          <label>Year</label>
+          <input class="input" @bind="fYear" />
+        </div>
+        <div>
+          <label>Age</label>
+          <input class="input" @bind="fAge" />
+        </div>
+        <div>
+          <label>Min Rating</label>
+          <input class="input" @bind="fMinRating" />
+        </div>
+        <div>
+          <label>Sort By</label>
+          <select class="input" @bind="fSortBy">
+            <option value="">(none)</option>
+            <option value="title">title</option>
+            <option value="year">year</option>
+            <option value="score">score</option>
+          </select>
+        </div>
+        <div>
+          <label>Sort Order</label>
+          <select class="input" @bind="fSortOrder">
+            <option value="">(default)</option>
+            <option value="asc">asc</option>
+            <option value="desc">desc</option>
+          </select>
+        </div>
+        <div class="align-end">
+          <button class="btn primary" @onclick="Load">Search</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>@(selected is null ? "Create Media" : $"Edit Media (#{selected.Media.Id})")</h3>
+
+      <div class="grid2">
+        <div>
+          <label>Title</label>
+          <input class="input" @bind="edit.Title" />
+        </div>
+        <div>
+          <label>Genre</label>
+          <input class="input" @bind="edit.Genre" />
+        </div>
+        <div>
+          <label>Type (0=Movie,1=Series,2=Game)</label>
+          <input class="input" @bind="edit.TypeStr" />
+        </div>
+        <div>
+          <label>Release Year</label>
+          <input class="input" @bind="edit.YearStr" />
+        </div>
+        <div>
+          <label>Age Restriction</label>
+          <input class="input" @bind="edit.AgeStr" />
+        </div>
+        <div class="meta">
+          <div class="hint"><b>Owner-only</b> Update/Delete</div>
+        </div>
+      </div>
+
+      <label>Description</label>
+      <textarea class="input" rows="3" @bind="edit.Description"></textarea>
+
+      <div class="row">
+        <button class="btn primary" @onclick="Create" disabled="@(selected is not null)">Create</button>
+        <button class="btn" @onclick="Update" disabled="@(selected is null)">Update</button>
+        <button class="btn danger" @onclick="Delete" disabled="@(selected is null)">Delete</button>
+        <div class="spacer"></div>
+        <button class="btn" @onclick="Clear">Clear</button>
+      </div>
+
+      @if (!string.IsNullOrWhiteSpace(actionMsg))
+      {
+        <div class="msg">@actionMsg</div>
+      }
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="row">
+        <h3>Results (@items.Count)</h3>
+        <div class="spacer"></div>
+        <button class="btn" @onclick="Load">Reload</button>
+      </div>
+
+      <div class="list">
+        @if (loading)
+        {
+          <div class="hint">Loading…</div>
+        }
+        else if (items.Count == 0)
+        {
+          <div class="hint">Keine Ergebnisse.</div>
+        }
+        else
+        {
+          @foreach (var m in items)
+          {
+            <div class="@ItemClass(m.Media.Id)" @onclick="() => Select(m)">
+              <div><b>#@m.Media.Id</b> — @m.Media.Title</div>
+              <div class="meta">Genre: @m.Media.Genre • Type: @m.Media.Type • Year: @m.Media.ReleaseYear • Age: @m.Media.AgeRestriction • Avg: @(m.AvgScore?.ToString("0.0") ?? "—")</div>
+            </div>
+          }
+        }
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <h3>Details</h3>
+        <div class="spacer"></div>
+        <button class="btn" @onclick="FavAdd" disabled="@(selected is null)">Favorite +</button>
+        <button class="btn" @onclick="FavRemove" disabled="@(selected is null)">Favorite -</button>
+      </div>
+
+      @if (selected is null)
+      {
+        <div class="hint">Wähle links ein Media.</div>
+      }
+      else
+      {
+        <div class="mono small">@detailsRaw</div>
+
+        <div class="sep"></div>
+        <h3>Rate this Media</h3>
+
+        <div class="grid2">
+          <div>
+            <label>Stars (1–5)</label>
+            <input class="input" @bind="rateStars" />
+          </div>
+          <div class="align-end">
+            <button class="btn primary" @onclick="SubmitRating">Submit</button>
+          </div>
+        </div>
+
+        <label>Comment (optional)</label>
+        <textarea class="input" rows="2" @bind="rateComment"></textarea>
+
+        <div class="sep"></div>
+        <div class="row">
+          <h3>Ratings (@ratings.Count)</h3>
+          <div class="spacer"></div>
+          <button class="btn" @onclick="LoadRatings" disabled="@(selected is null)">Reload</button>
+        </div>
+
+        <div class="list">
+          @if (ratings.Count == 0)
+          {
+            <div class="hint">Noch keine Ratings.</div>
+          }
+          else
+          {
+            @foreach (var r in ratings)
+            {
+              <div class="item">
+                <div><b>#@r.Id</b> — Stars: @r.Stars • Likes: @r.Likes • Confirmed: @r.Confirmed</div>
+                <div class="meta">UserId: @r.UserId • @r.Comment</div>
+
+                <div class="row" style="margin-top:8px">
+                  <button class="btn" @onclick="() => Like(r.Id)">Like</button>
+                  <button class="btn" @onclick="() => Confirm(r.Id)">Confirm</button>
+                  <button class="btn danger" @onclick="() => DeleteRating(r.Id)">Delete (own)</button>
+                </div>
+              </div>
+            }
+          }
+        </div>
+      }
+    </div>
+  </div>
+}
+
+@code {
+  private bool loading;
+  private List<MediaDetailsResponse> items = new();
+  private MediaDetailsResponse? selected;
+
+  private string detailsRaw = "";
+  private List<RatingDto> ratings = new();
+
+  private string fTitle = "";
+  private string fGenre = "";
+  private string fType = "";
+  private string fYear = "";
+  private string fAge = "";
+  private string fMinRating = "";
+  private string fSortBy = "";
+  private string fSortOrder = "";
+
+  private EditModel edit = new();
+  private string actionMsg = "";
+
+  private string rateStars = "5";
+  private string rateComment = "";
+
+  private string ItemClass(int id) => (selected?.Media.Id == id) ? "item selected" : "item";
+
+  protected override async Task OnInitializedAsync()
+  {
+    if (Auth.IsLoggedIn) await Load();
+  }
+
+  private async Task Load()
+  {
+    loading = true;
+    selected = null;
+    detailsRaw = "";
+    ratings.Clear();
+
+    var q = new Dictionary<string, string?>
+    {
+      ["titlePart"] = fTitle,
+      ["genre"] = fGenre,
+      ["type"] = fType,
+      ["year"] = fYear,
+      ["age"] = fAge,
+      ["minRating"] = fMinRating,
+      ["sortBy"] = fSortBy,
+      ["sortOrder"] = fSortOrder
+    };
+
+    items = await Api.GetMediaAsync(q);
+    loading = false;
+  }
+
+  private void Select(MediaDetailsResponse m)
+  {
+    selected = m;
+    edit.From(m.Media);
+    _ = LoadDetails();
+  }
+
+  private async Task LoadDetails()
+  {
+    if (selected is null) return;
+
+    var (ok, raw, _) = await Api.GetMediaDetailsAsync(selected.Media.Id);
+    detailsRaw = raw;
+
+    await LoadRatings();
+  }
+
+  private async Task LoadRatings()
+  {
+    if (selected is null) return;
+    ratings = await Api.GetRatingsForMediaAsync(selected.Media.Id);
+  }
+
+  private async Task Create()
+  {
+    actionMsg = "";
+    var m = edit.ToDtoOrNull();
+    if (m is null) { actionMsg = "❌ Bitte Type/Year/Age korrekt eingeben."; return; }
+
+    var (ok, id, msg) = await Api.CreateMediaAsync(m);
+    actionMsg = ok ? "✅ Created" : $"❌ {Short(msg)}";
+
+    if (ok)
+    {
+      await Load();
+      if (id.HasValue)
+      {
+        var found = items.FirstOrDefault(x => x.Media.Id == id.Value);
+        if (found != null) Select(found);
+      }
+    }
+  }
+
+  private async Task Update()
+  {
+    if (selected is null) return;
+    actionMsg = "";
+
+    var m = edit.ToDtoOrNull();
+    if (m is null) { actionMsg = "❌ Bitte Type/Year/Age korrekt eingeben."; return; }
+
+    var (ok, msg) = await Api.UpdateMediaAsync(selected.Media.Id, m);
+    actionMsg = ok ? "✅ Updated" : $"❌ {Short(msg)}";
+
+    if (ok)
+    {
+      await Load();
+      var found = items.FirstOrDefault(x => x.Media.Id == selected.Media.Id);
+      if (found != null) Select(found);
+    }
+  }
+
+  private async Task Delete()
+  {
+    if (selected is null) return;
+    actionMsg = "";
+
+    var (ok, msg) = await Api.DeleteMediaAsync(selected.Media.Id);
+    actionMsg = ok ? "✅ Deleted" : $"❌ {Short(msg)}";
+    if (ok) { Clear(); await Load(); }
+  }
+
+  private void Clear()
+  {
+    selected = null;
+    edit = new();
+    detailsRaw = "";
+    ratings.Clear();
+    actionMsg = "";
+  }
+
+  private async Task SubmitRating()
+  {
+    if (selected is null) return;
+
+    if (!int.TryParse(rateStars, out var stars) || stars < 1 || stars > 5)
+    {
+      actionMsg = "❌ Stars müssen 1–5 sein.";
+      return;
+    }
+
+    var (ok, msg) = await Api.RateAsync(selected.Media.Id, stars, rateComment);
+    actionMsg = ok ? "✅ Rating submitted (Upsert)" : $"❌ {Short(msg)}";
+    if (ok) await LoadRatings();
+  }
+
+  private async Task Like(int ratingId)
+  {
+    var (ok, msg) = await Api.LikeRatingAsync(ratingId);
+    actionMsg = ok ? "✅ Liked" : $"❌ {Short(msg)}";
+    if (ok) await LoadRatings();
+  }
+
+  private async Task Confirm(int ratingId)
+  {
+    var (ok, msg) = await Api.ConfirmRatingAsync(ratingId);
+    actionMsg = ok ? "✅ Confirmed" : $"❌ {Short(msg)}";
+    if (ok) await LoadRatings();
+  }
+
+  private async Task DeleteRating(int ratingId)
+  {
+    var (ok, msg) = await Api.DeleteRatingAsync(ratingId);
+    actionMsg = ok ? "✅ Rating deleted" : $"❌ {Short(msg)}";
+    if (ok) await LoadRatings();
+  }
+
+  private async Task FavAdd()
+  {
+    if (selected is null) return;
+    var (ok, msg) = await Api.FavoriteAddAsync(selected.Media.Id);
+    actionMsg = ok ? "✅ Added to favorites" : $"❌ {Short(msg)}";
+  }
+
+  private async Task FavRemove()
+  {
+    if (selected is null) return;
+    var (ok, msg) = await Api.FavoriteRemoveAsync(selected.Media.Id);
+    actionMsg = ok ? "✅ Removed from favorites" : $"❌ {Short(msg)}";
+  }
+
+  private static string Short(string? s)
+  {
+    if (string.IsNullOrWhiteSpace(s)) return "Unknown error";
+    s = s.Trim();
+    return s.Length > 260 ? s[..260] + "…" : s;
+  }
+
+  private sealed class EditModel
+  {
+    public string Title { get; set; } = "";
+    public string Description { get; set; } = "";
+    public string Genre { get; set; } = "";
+    public string TypeStr { get; set; } = "0";
+    public string YearStr { get; set; } = "2024";
+    public string AgeStr { get; set; } = "12";
+
+    public void From(MediaDto m)
+    {
+      Title = m.Title;
+      Description = m.Description;
+      Genre = m.Genre;
+      TypeStr = m.Type.ToString();
+      YearStr = m.ReleaseYear.ToString();
+      AgeStr = m.AgeRestriction.ToString();
+    }
+
+    public MediaDto? ToDtoOrNull()
+    {
+      if (!int.TryParse(TypeStr, out var t)) return null;
+      if (!int.TryParse(YearStr, out var y)) return null;
+      if (!int.TryParse(AgeStr, out var a)) return null;
+
+      return new MediaDto
+      {
+        Title = Title,
+        Description = Description,
+        Genre = Genre,
+        Type = t,
+        ReleaseYear = y,
+        AgeRestriction = a
+      };
+    }
+  }
+}

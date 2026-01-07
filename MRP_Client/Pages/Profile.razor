@@ -1,0 +1,191 @@
+﻿@page "/profile"
+@inject ApiClient Api
+@inject AuthState Auth
+
+<h1>Profile</h1>
+
+@if (!Auth.IsLoggedIn)
+{
+  <div class="card"><b>Bitte zuerst einloggen.</b></div>
+}
+else
+{
+  <div class="grid2">
+    <div class="card">
+      <div class="row">
+        <h3>My Profile Stats</h3>
+        <div class="spacer"></div>
+        <button class="btn" @onclick="LoadAll">Reload</button>
+      </div>
+
+      <div class="mono small">@profileJson</div>
+
+      <div class="sep"></div>
+      <h3>Change Password</h3>
+      <label>New Password</label>
+      <input class="input" type="password" @bind="newPassword" />
+      <button class="btn primary" @onclick="ChangePassword">Update</button>
+
+      @if (!string.IsNullOrWhiteSpace(msg))
+      {
+        <div class="msg">@msg</div>
+      }
+    </div>
+
+    <div class="card">
+      <h3>Leaderboard</h3>
+      <div class="list">
+        @if (leaderboard.Count == 0)
+        {
+          <div class="hint">—</div>
+        }
+        else
+        {
+          @foreach (var e in leaderboard)
+          {
+            <div class="item">
+              <div><b>@e.Username</b> — Avg: @e.AvgScore.ToString("0.0")</div>
+              <div class="meta">TotalRatings: @e.TotalRatings • FavoriteGenre: @e.FavoriteGenre</div>
+            </div>
+          }
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h3>My Favorites</h3>
+      <div class="list">
+        @if (favorites.Count == 0)
+        {
+          <div class="hint">—</div>
+        }
+        else
+        {
+          @foreach (var m in favorites)
+          {
+            <div class="item">
+              <div><b>#@m.Id</b> — @m.Title</div>
+
+              <div class="meta">
+                Genre: @m.Genre • Type: @m.Type
+              </div>
+
+              @if (m.LikedByUsers is { Count: > 0 })
+              {
+                <div class="meta">Liked by: @string.Join(", ", m.LikedByUsers)</div>
+              }
+              else
+              {
+                <div class="meta">Liked by: —</div>
+              }
+            </div>
+          }
+        }
+      </div>
+    </div>
+
+
+    <div class="card">
+      <div class="row">
+        <h3>Recommendations</h3>
+        <div class="spacer"></div>
+        <label class="inline">Limit</label>
+        <input class="input smallinput" @bind="recLimitStr" />
+        <button class="btn" @onclick="LoadRecs">Load</button>
+      </div>
+      <div class="list">
+        @if (recs.Count == 0)
+        {
+          <div class="hint">—</div>
+        }
+        else
+        {
+          @foreach (var m in recs)
+          {
+            <div class="item">
+              <div><b>#@m.Media.Id</b> — @m.Media.Title</div>
+              <div class="meta">Genre: @m.Media.Genre • Type: @m.Media.Type • Avg: @(m.AvgScore?.ToString("0.0") ?? "—")</div>
+            </div>
+          }
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>My Rating History</h3>
+    <div class="list">
+      @if (history.Count == 0)
+      {
+        <div class="hint">—</div>
+      }
+      else
+      {
+        @foreach (var r in history)
+        {
+          <div class="item">
+            <div><b>#@r.Id</b> — MediaId: @r.MediaId • Stars: @r.Stars • Likes: @r.Likes</div>
+            <div class="meta">Confirmed: @r.Confirmed • @r.Comment</div>
+          </div>
+        }
+      }
+    </div>
+  </div>
+}
+
+@code {
+  private string profileJson = "—";
+  private List<LeaderboardEntry> leaderboard = new();
+  private List<MediaDto> favorites = new();
+  private List<RatingDto> history = new();
+  private List<MediaDetailsResponse> recs = new();
+
+  private string newPassword = "";
+  private string msg = "";
+
+  private string recLimitStr = "10";
+
+  protected override async Task OnInitializedAsync()
+  {
+    if (Auth.IsLoggedIn) await LoadAll();
+  }
+
+  private async Task LoadAll()
+  {
+    msg = "";
+    var p = await Api.GetProfileAsync(Auth.Username);
+    profileJson = p is null ? "—" : JsonSerializer.Serialize(p, new JsonSerializerOptions { WriteIndented = true });
+
+    leaderboard = await Api.GetLeaderboardAsync();
+    favorites = await Api.GetFavoritesAsync(Auth.Username);
+    history = await Api.GetRatingHistoryAsync(Auth.Username);
+
+    await LoadRecs();
+  }
+
+  private async Task LoadRecs()
+  {
+    if (!int.TryParse(recLimitStr, out var lim)) lim = 10;
+    if (lim < 1) lim = 1;
+    if (lim > 50) lim = 50;
+
+    recs = await Api.GetRecommendationsAsync(Auth.Username, lim);
+  }
+
+  private async Task ChangePassword()
+  {
+    msg = "";
+    var (ok, raw) = await Api.ChangePasswordAsync(Auth.Username, newPassword);
+    msg = ok ? "✅ Passwort geändert" : $"❌ {Short(raw)}";
+    if (ok) newPassword = "";
+  }
+
+  private static string Short(string? s)
+  {
+    if (string.IsNullOrWhiteSpace(s)) return "Unknown error";
+    s = s.Trim();
+    return s.Length > 260 ? s[..260] + "…" : s;
+  }
+}

@@ -1,0 +1,65 @@
+﻿@inherits LayoutComponentBase
+@inject NavigationManager Nav
+@inject AuthState Auth
+
+<div class="app-shell">
+    <header class="topbar">
+        <div class="brand" @onclick="GoHome">
+            <div class="logo">MRP</div>
+            <div class="titles">
+                <div class="title">Demo UI</div>
+                <div class="subtitle">Blazor WASM - API: http://localhost:8080</div>
+            </div>
+        </div>
+
+        <div class="right">
+            @if (Auth.IsLoggedIn)
+            {
+                <span class="pill">Eingeloggt als <b>@Auth.Username</b></span>
+                <button class="btn" @onclick="Logout">Logout</button>
+            }
+            else
+            {
+                <span class="pill">Nicht eingeloggt</span>
+            }
+        </div>
+    </header>
+
+    <div class="body">
+        <nav class="sidebar">
+            <NavLink class="nav" href="/" Match="NavLinkMatch.All">Auth</NavLink>
+            <NavLink class="@NavClass(Auth.IsLoggedIn)" href="/media">Media</NavLink>
+            <NavLink class="@NavClass(Auth.IsLoggedIn)" href="/profile">Profile</NavLink>
+
+
+            <div class="sep"></div>
+            <div class="hint">
+                <div><b>Hinweis</b></div>
+                <div>Wenn du den Client unter deinem Server hostest, gibt’s keine CORS-Probleme.</div>
+            </div>
+        </nav>
+
+        <main class="content">
+            @Body
+        </main>
+    </div>
+</div>
+
+@code {
+    private void GoHome() => Nav.NavigateTo("/");
+
+    private string NavClass(bool enabled)
+        => enabled ? "nav" : "nav disabled";
+
+    protected override async Task OnInitializedAsync()
+    {
+        Auth.Changed += StateHasChanged;
+        await Auth.LoadAsync();
+    }
+
+    private async Task Logout()
+    {
+        await Auth.ClearAsync();
+        Nav.NavigateTo("/");
+    }
+}

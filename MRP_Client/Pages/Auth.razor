@@ -1,0 +1,75 @@
+﻿@page "/"
+@inject ApiClient Api
+@inject AuthState _Auth
+@inject NavigationManager Nav
+
+<h1>Auth</h1>
+
+<div class="grid2">
+    <div class="card">
+        <h3>Register</h3>
+        <label>Username</label>
+        <input class="input" @bind="regUser" />
+        <label>Password</label>
+        <input class="input" type="password" @bind="regPass" />
+        <button class="btn primary" @onclick="Register">Register</button>
+
+        @if (!string.IsNullOrWhiteSpace(regMsg))
+        {
+            <div class="msg">@regMsg</div>
+        }
+    </div>
+
+    <div class="card">
+        <h3>Login</h3>
+        <label>Username</label>
+        <input class="input" @bind="logUser" />
+        <label>Password</label>
+        <input class="input" type="password" @bind="logPass" />
+        <button class="btn primary" @onclick="Login">Login</button>
+
+        @if (!string.IsNullOrWhiteSpace(logMsg))
+        {
+            <div class="msg">@logMsg</div>
+        }
+    </div>
+</div>
+
+@code {
+    private string regUser = "";
+    private string regPass = "";
+    private string regMsg = "";
+
+    private string logUser = "";
+    private string logPass = "";
+    private string logMsg = "";
+
+    private async Task Register()
+    {
+        regMsg = "";
+        var (ok, msg) = await Api.RegisterAsync(regUser.Trim(), regPass);
+        regMsg = ok ? "✅ Registered (du kannst jetzt login)" : $" {Short(msg)}";
+    }
+
+    private async Task Login()
+    {
+        logMsg = "";
+        var (ok, token, msg) = await Api.LoginAsync(logUser.Trim(), logPass);
+        if (!ok || string.IsNullOrWhiteSpace(token))
+        {
+            logMsg = $" {Short(msg)}";
+            return;
+        }
+
+        await _Auth.SetAsync(logUser.Trim(), token);
+        logMsg = "✅ Login erfolgreich";
+        Nav.NavigateTo("/media");
+    }
+
+    private static string Short(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return "Unknown error";
+        s = s.Trim();
+        return s.Length > 240 ? s[..240] + "…" : s;
+    }
+}
