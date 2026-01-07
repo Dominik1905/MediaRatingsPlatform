@@ -10,5 +10,7 @@ public class Rating
     public bool Confirmed { get; set; }
     public DateTime Timestamp { get; set; }
 
-    public List<User> LikedByUsers { get; set; } = new();
+    public int Likes { get; set; }
+    
+    public List<string> LikedByUsers { get; set; } = new();
 }

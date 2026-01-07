@@ -1,5 +1,6 @@
-﻿using System.Net;
+using System.Net;
 using DatabaseObjects;
+using DatabaseObjects.Service;
 
 namespace MediaRatingsPlatform;
 
@@ -7,8 +8,11 @@ public static class AuthHelper
 {
     public static User? GetUserFromRequest(HttpListenerContext context)
     {
-        var authHeader = context.Request.Headers["Authorization"];
-        if (authHeader == null || !authHeader.StartsWith("Bearer "))
+
+        var authHeader = context.Request.Headers["Authorization"]
+                         ?? context.Request.Headers["Authentication"];
+
+        if (string.IsNullOrWhiteSpace(authHeader) || !authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
             return null;
 
         string token = authHeader.Substring("Bearer ".Length).Trim();
@@ -20,7 +24,6 @@ public static class AuthHelper
         if (string.IsNullOrEmpty(username))
             return null;
 
-        // User aus DB holen
-        return new DatabaseObjects.Service.DatabaseService().GetUserByUsername(username);
+        return new DatabaseService().GetUserByUsername(username);
     }
 }

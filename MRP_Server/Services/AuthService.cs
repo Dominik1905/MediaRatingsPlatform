@@ -84,7 +84,7 @@ public static class AuthService
                     ValidateLifetime = true,
                     IssuerSigningKey = SigningKey,
                     ValidateIssuerSigningKey = true,
-                    ClockSkew = TimeSpan.Zero // keine extra 5min Toleranz
+                    ClockSkew = TimeSpan.Zero 
                 }, out _);
 
             return principal;

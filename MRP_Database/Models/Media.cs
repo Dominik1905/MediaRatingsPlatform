@@ -1,4 +1,6 @@
-﻿namespace DatabaseObjects;
+﻿using System.Text.Json.Serialization;
+
+namespace DatabaseObjects;
 
 public enum MediaType { Movie, Series, Game }
 public class Media
@@ -14,5 +16,5 @@ public class Media
     public int CreatedByUserId { get; set; }
     
     public List<Rating> Ratings { get; set; } = new();
-    public List<User> LikedByUsers { get; set; } = new();
+    public List<string> LikedByUsers { get; set; } = new();
 }
